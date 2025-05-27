@@ -36,12 +36,12 @@ jobs:
         with:
           context: .
           file: ./Dockerfile.dev
-          tags: ${{ vars.DOCKERHUB_USERNAME }}/python-crud-dev:latest
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/test-python-crud:latest
           load: true
 
       - name: Run tests
         run: |
-          docker run --rm --network=host ${{ vars.DOCKERHUB_USERNAME }}/python-crud-dev:latest
+          docker run --rm --network=host ${{ vars.DOCKERHUB_USERNAME }}/test-python-crud:latest
 
   push:
     needs: test
@@ -68,4 +68,4 @@ jobs:
         context: .
         push: true
         file: ./Dockerfile.dev
-        tags: ${{ vars.DOCKERHUB_USERNAME }}/python-crud-dev:latest
+        tags: ${{ vars.DOCKERHUB_USERNAME }}/test-python-crud:latest
