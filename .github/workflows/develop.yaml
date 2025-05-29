@@ -80,26 +80,31 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: master
-          fetch-depth: 0  # Важно: получаем полную историю
+          fetch-depth: 0  # Получаем полную историю коммитов
           token: ${{ secrets.GITHUB_TOKEN }}
   
-      - name: Merge dev into master
+      - name: Configure Git
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          
-          # Добавляем remote для dev ветки
-          git remote add dev-origin https://github.com/VasiliyQs/Python-crud.git
-          
-          # Получаем обе ветки полностью
-          git fetch origin --unshallow
-          git fetch dev-origin --unshallow
-          
-          # Пробуем мерж с разрешением несвязанных историй
-          git merge --allow-unrelated-histories dev-origin/dev -m "Merge dev into master by GitHub Actions"
-          
-          # Пушим изменения
-          git push origin master
+  
+      - name: Fetch dev branch
+        run: |
+          git fetch origin dev:dev
+  
+      - name: Merge dev into master
+        run: |
+          # Пробуем обычный мерж сначала
+          git merge dev --no-ff -m "Merge dev into master by GitHub Actions" || \
+          {
+            # Если обычный мерж не удался, пробуем с разрешением несвязанных историй
+            echo "Attempting merge with allow-unrelated-histories..."
+            git merge --allow-unrelated-histories dev -m "Merge dev into master by GitHub Actions"
+          }
+
+    - name: Push changes
+      run: |
+        git push origin master
           
   deploy-prod:
     needs: merge-to-master
