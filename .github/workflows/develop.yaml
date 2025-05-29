@@ -85,8 +85,8 @@ jobs:
   
       - name: Configure Git
         run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
+          git config user.name "VasiliyOs"
+          git config user.email "vasiliy2809_ne@mail.ru"
   
       - name: Fetch dev branch
         run: |
