@@ -6,7 +6,6 @@ on:
 
 jobs:
   build-and-test:
-    if: github.ref == 'refs/heads/dev'
     runs-on: self-hosted
     services:
       postgres:
@@ -45,7 +44,6 @@ jobs:
           docker run --rm --network=host ${{ vars.DOCKERHUB_USERNAME }}/test-python-crud:latest
 
   push-and-deploy:
-    if: github.ref == 'refs/heads/master'
     needs: build-and-test
     runs-on: self-hosted
 
