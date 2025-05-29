@@ -59,30 +59,13 @@ jobs:
               ref: `heads/${branchName}`,
             });
 
-            // Create a new commit or merge from dev into master.
-            // Для простоты можно сделать прямой пуш в мастер (если есть права)
-            // или создать pull request. Здесь пример с прямым пушем.
-
-            // Настоятельно рекомендуется использовать pull request для этого процесса,
-            // но для автоматизации можно сделать так:
-
-            // Получить текущие изменения из dev и залить их в master.
-            // Для этого потребуется клонировать репозиторий или использовать git commands.
-
             // Ниже пример с использованием git команд через run:
-
             const { execSync } = require('child_process');
-
-            // Настроить git (если нужно)
-            execSync('git config user.name "github-actions[bot]"');
-            execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');
 
             // Переключиться на мастер и слить изменения из dev
             execSync('git checkout master');
-            execSync('git merge origin/dev --no-ff -m "Automated merge from dev after successful tests"');
-
+            
             // Запушить изменения в мастер
             execSync('git push origin master');
-
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
