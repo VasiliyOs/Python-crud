@@ -1,54 +1,88 @@
-name: Deploy
+name: Developing
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "dev" ]
 
 jobs:
-  deploy:
+  test:
     runs-on: self-hosted
-    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        ports:
+          - "5432:5432"
+        env:
+          POSTGRES_DB: kubsu
+          POSTGRES_USER: kubsu
+          POSTGRES_PASSWORD: kubsu
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: dev
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and push
+      - name: Build container
         uses: docker/build-push-action@v3
         with:
           context: .
-          file: Dockerfile.prod
-          push: true
-          tags: ${{ vars.DOCKERHUB_USERNAME }}/python-crud:latest
+          file: ./Dockerfile.dev
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/test-python-crud:latest
+          load: true
 
-      - name: Deploy to on server
-        uses: appleboy/ssh-action@v1
+      - name: Run tests
+        run: |
+          docker run --rm --network=host ${{ vars.DOCKERHUB_USERNAME }}/test-python-crud:latest
+
+      - name: Push changes to master branch after successful tests
+        if: success()
+        uses: actions/github-script@v6
         with:
-          host: ${{ secrets.SSH_HOST }}
-          port: ${{ secrets.SSH_PORT }}
-          username: ${{ secrets.SSH_USERNAME }} 
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            podman login -u ${{ vars.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }} docker.io
+            const { GITHUB_TOKEN } = process.env;
+            const octokit = github.getOctokit(GITHUB_TOKEN);
+            const branchName = 'master';
 
-            # Stop and remove existing container if it exists
-            podman stop python-crud || true
-            podman rm python-crud || true
+            // Fetch the latest master branch to ensure up-to-date base
+            await octokit.git.getRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `heads/${branchName}`,
+            });
 
-            # Remove existing image if it exists
-            podman rmi ${{ vars.DOCKERHUB_USERNAME }}/python-crud:latest || true
+            // Create a new commit or merge from dev into master.
+            // Для простоты можно сделать прямой пуш в мастер (если есть права)
+            // или создать pull request. Здесь пример с прямым пушем.
 
-            # Pull new image from Docker Hub
-            podman pull ${{ vars.DOCKERHUB_USERNAME }}/python-crud:latest
+            // Настоятельно рекомендуется использовать pull request для этого процесса,
+            // но для автоматизации можно сделать так:
 
-            # Run new container
-            podman run -d --name python-crud --network host ${{ vars.DOCKERHUB_USERNAME }}/python-crud:latest
-            echo "Container has been deployed successfully!"
+            // Получить текущие изменения из dev и залить их в master.
+            // Для этого потребуется клонировать репозиторий или использовать git commands.
+
+            // Ниже пример с использованием git команд через run:
+
+            const { execSync } = require('child_process');
+
+            // Настроить git (если нужно)
+            execSync('git config user.name "github-actions[bot]"');
+            execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');
+
+            // Переключиться на мастер и слить изменения из dev
+            execSync('git checkout master');
+            execSync('git merge origin/dev --no-ff -m "Automated merge from dev after successful tests"');
+
+            // Запушить изменения в мастер
+            execSync('git push origin master');
+
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
