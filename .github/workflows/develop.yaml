@@ -74,7 +74,7 @@ jobs:
   merge-to-master:
     needs: push-dev-image
     runs-on: ubuntu-latest
-    
+  
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -101,7 +101,7 @@ jobs:
             echo "Attempting merge with allow-unrelated-histories..."
             git merge --allow-unrelated-histories dev -m "Merge dev into master by GitHub Actions"
           }
-
+  
       - name: Push changes
         run: |
           git push origin master
