@@ -2,7 +2,7 @@ name: Developing and Deploying
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "dev", "master" ]
 
 jobs:
   build-and-test:
