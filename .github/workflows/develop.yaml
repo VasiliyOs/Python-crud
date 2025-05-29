@@ -1,151 +1,29 @@
-name: CI/CD Pipeline
+name: Test Push
 
 on:
-  push:
-    branches: [ "dev" ]
   workflow_dispatch:
 
 jobs:
-  build-and-test:
-    runs-on: self-hosted
-    services:
-      postgres:
-        image: postgres:15-alpine
-        ports:
-          - "5432:5432"
-        env:
-          POSTGRES_DB: kubsu
-          POSTGRES_USER: kubsu
-          POSTGRES_PASSWORD: kubsu
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
+  test-push:
+    runs-on: ubuntu-latest
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: dev
-
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build container
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./Dockerfile.dev
-          tags: ${{ vars.DOCKERHUB_USERNAME }}/test-python-crud:latest
-          load: true
-
-      - name: Run tests
-        run: |
-          docker run --rm --network=host ${{ vars.DOCKERHUB_USERNAME }}/test-python-crud:latest
-
-  push-dev-image:
-    needs: build-and-test
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: dev
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and push dev image
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          push: true
-          file: ./Dockerfile.dev
-          tags: ${{ vars.DOCKERHUB_USERNAME }}/test-python-crud:latest
-
-  merge-to-master:
-    needs: push-dev-image
-    runs-on: ubuntu-latest
-  
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: master
-          fetch-depth: 0  # Получаем полную историю коммитов
           token: ${{ secrets.GITHUB_TOKEN }}
-  
+          
       - name: Configure Git
         run: |
-          git config user.name "VasiliyOs"
-          git config user.email "vasiliy2809_ne@mail.ru"
-  
-      - name: Fetch dev branch
-        run: |
-          git fetch origin dev:dev
-  
-      - name: Merge dev into master
-        run: |
-          # Пробуем обычный мерж сначала
-          git merge dev --no-ff -m "Merge dev into master by GitHub Actions" || \
-          {
-            # Если обычный мерж не удался, пробуем с разрешением несвязанных историй
-            echo "Attempting merge with allow-unrelated-histories..."
-            git merge --allow-unrelated-histories dev -m "Merge dev into master by GitHub Actions"
-          }
-  
-      - name: Push changes
-        run: |
-            git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/VasiliyOs/Python-crud.git
-            git push origin master
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
           
-  deploy-prod:
-    needs: merge-to-master
-    runs-on: self-hosted
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: master
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and push production image
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: Dockerfile.prod
-          push: true
-          tags: ${{ vars.DOCKERHUB_USERNAME }}/python-crud:latest
-
-      - name: Deploy to server
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          port: ${{ secrets.SSH_PORT }}
-          username: ${{ secrets.SSH_USERNAME }} 
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            podman login -u ${{ vars.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }} docker.io
-            podman stop python-crud || true
-            podman rm python-crud || true
-            podman rmi ${{ vars.DOCKERHUB_USERNAME }}/python-crud:latest || true
-            podman pull ${{ vars.DOCKERHUB_USERNAME }}/python-crud:latest
-            podman run -d --name python-crud --network host ${{ vars.DOCKERHUB_USERNAME }}/python-crud:latest
-            echo "Container has been deployed successfully!"
+      - name: Create test file
+        run: |
+          echo "Test push at $(date)" >> test-push.txt
+          git add test-push.txt
+          git commit -m "Test push commit"
+          
+      - name: Push to repository
+        run: |
+          git push origin HEAD:${{ github.ref }}
