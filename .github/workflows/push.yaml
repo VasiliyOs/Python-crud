@@ -1,29 +1,35 @@
-name: Test Push
+name: Test Push Workflow
 
 on:
+  # Триггер при ручном запуске через UI
   workflow_dispatch:
+  # Триггер при push в любую ветку
+  push:
+    branches: ['*']
 
 jobs:
-  test-push:
+  test-push-job:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          # Явно указываем токен
           token: ${{ secrets.GITHUB_TOKEN }}
-          
-      - name: Configure Git
+          # Полная история коммитов
+          fetch-depth: 0
+
+      - name: Setup Git identity
         run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          
-      - name: Create test file
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      - name: Create test commit
         run: |
           echo "Test push at $(date)" >> test-push.txt
           git add test-push.txt
-          git commit -m "Test push commit"
+          git commit -m "Automated test commit [skip ci]"
           
-      - name: Push to repository
-        run: |
-          git push origin HEAD:${{ github.ref }}
+      - name: Push changes
+        run: git push origin HEAD:${{ github.ref }}
