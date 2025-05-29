@@ -43,29 +43,46 @@ jobs:
         run: |
           docker run --rm --network=host ${{ vars.DOCKERHUB_USERNAME }}/test-python-crud:latest
 
-  push:
-    needs: test
-    runs-on: ubuntu-latest
+      - name: Push changes to master branch after successful tests
+        if: success()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { GITHUB_TOKEN } = process.env;
+            const octokit = github.getOctokit(GITHUB_TOKEN);
+            const branchName = 'master';
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        ref: dev
+            // Fetch the latest master branch to ensure up-to-date base
+            await octokit.git.getRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `heads/${branchName}`,
+            });
 
-    - name: Login to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ vars.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
+            // Create a new commit or merge from dev into master.
+            // Для простоты можно сделать прямой пуш в мастер (если есть права)
+            // или создать pull request. Здесь пример с прямым пушем.
 
-    - name: Setup Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    
-    - name: Build and push
-      uses: docker/build-push-action@v3
-      with:
-        context: .
-        push: true
-        file: ./Dockerfile.dev
-        tags: ${{ vars.DOCKERHUB_USERNAME }}/test-python-crud:latest
+            // Настоятельно рекомендуется использовать pull request для этого процесса,
+            // но для автоматизации можно сделать так:
+
+            // Получить текущие изменения из dev и залить их в master.
+            // Для этого потребуется клонировать репозиторий или использовать git commands.
+
+            // Ниже пример с использованием git команд через run:
+
+            const { execSync } = require('child_process');
+
+            // Настроить git (если нужно)
+            execSync('git config user.name "github-actions[bot]"');
+            execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');
+
+            // Переключиться на мастер и слить изменения из dev
+            execSync('git checkout master');
+            execSync('git merge origin/dev --no-ff -m "Automated merge from dev after successful tests"');
+
+            // Запушить изменения в мастер
+            execSync('git push origin master');
+
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
